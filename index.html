@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual de Atendimento - Minha Empresa</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#fa4516',
+                        secondary: '#1f2937',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Estilos para a barra de rolagem */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #fa4516;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #e03e14;
+        }
+        #main-content {
+            display: none;
+        }
+        .nav-link.active {
+            background-color: #fa4516;
+            color: white;
+        }
+        .content-section {
+            transition: opacity 0.5s ease-in-out;
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .accordion-button .fa-chevron-down {
+            transition: transform 0.3s ease;
+        }
+        .accordion-button.active .fa-chevron-down {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <div id="login-container" class="min-h-screen flex items-center justify-center bg-gray-900 text-white p-4">
+        <div class="w-full max-w-md bg-gray-800 rounded-2xl shadow-lg p-8 text-center">
+            <h1 class="text-3xl font-bold mb-2">Minha Empresa (Senha: admin123)</h1>
+            <p class="text-gray-400 mb-8">Manual de Atendimento - SAC</p>
+            <form id="login-form">
+                <input type="password" id="password" placeholder="Digite a senha" class="w-full bg-gray-700 text-white rounded-lg p-3 mb-4 border border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none transition">
+                <button type="submit" class="w-full bg-primary hover:bg-opacity-90 text-white font-bold py-3 rounded-lg transition-transform transform hover:scale-105">Acessar Manual</button>
+                <p id="error-message" class="text-red-500 mt-4 h-4"></p>
+            </form>
+        </div>
+    </div>
+
+    <div id="content-placeholder"></div>
+
+    <script>
+        // Função para mostrar uma seção específica e atualizar os links de navegação
+        function showSection(sectionId) {
+            const mainContent = document.getElementById('main-content');
+            if (!mainContent) return;
+
+            mainContent.querySelectorAll('.content-section').forEach(section => {
+                section.style.display = 'none';
+            });
+
+            const activeSection = mainContent.querySelector(`#${sectionId}`);
+            if (activeSection) {
+                activeSection.style.display = 'block';
+            }
+
+            mainContent.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.toggle('active', link.getAttribute('data-section') === sectionId);
+            });
+
+            const mobileNav = mainContent.querySelector('#mobile-nav');
+            if (mobileNav) {
+                mobileNav.value = sectionId;
+            }
+        }
+
+        // Função para configurar todos os eventos de clique da navegação
+        function setupNavigationEvents() {
+            const mainContent = document.getElementById('main-content');
+            if (!mainContent) return;
+
+            mainContent.addEventListener('click', (event) => {
+                const navLink = event.target.closest('a[data-section]');
+                if (navLink) {
+                    event.preventDefault();
+                    showSection(navLink.getAttribute('data-section'));
+                }
+            });
+            
+            const mobileNav = mainContent.querySelector('#mobile-nav');
+            if(mobileNav) {
+                mobileNav.addEventListener('change', () => showSection(mobileNav.value));
+            }
+        }
+        
+        // Função para inicializar os scripts do conteúdo principal
+        function initializeMainContentScripts() {
+            const accordionContainer = document.getElementById('accordion-container');
+            if (accordionContainer) {
+                accordionContainer.addEventListener('click', function(event) {
+                    const button = event.target.closest('.accordion-button');
+                    if (button) {
+                        button.classList.toggle('active');
+                        const content = button.nextElementSibling;
+                        content.style.maxHeight = content.style.maxHeight ? null : content.scrollHeight + "px";
+                    }
+                });
+            }
+            setupNavigationEvents();
+            showSection('inicio');
+        }
+        
+        async function loadMainContent() {
+            try {
+                // Faz uma chamada para a nova função 'content' para buscar o HTML.
+                const response = await fetch('/.netlify/functions/content');
+                if (!response.ok) {
+                    throw new Error('Falha ao carregar o conteúdo do manual.');
+                }
+                const mainHTML = await response.text(); // Pega o HTML como texto
+
+                const placeholder = document.getElementById('content-placeholder');
+                placeholder.innerHTML = mainHTML; // Insere o HTML recebido na página
+
+                document.getElementById('login-container').style.display = 'none';
+                document.getElementById('main-content').style.display = 'block';
+
+                initializeMainContentScripts();
+            } catch (error) {
+                console.error("Erro ao carregar o conteúdo principal:", error);
+                const errorMessage = document.getElementById('error-message');
+                if(errorMessage) {
+                    errorMessage.textContent = "Não foi possível carregar o manual.";
+                }
+            }
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const passwordInput = document.getElementById('password');
+            const errorMessage = document.getElementById('error-message');
+            const senhaDigitada = passwordInput.value;
+
+            errorMessage.textContent = 'Verificando...';
+            errorMessage.classList.remove('text-red-500');
+
+            try {
+                const response = await fetch('/.netlify/functions/auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: senhaDigitada }),
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    sessionStorage.setItem('isLoggedIn', 'true');
+                    // Chama a função para carregar o conteúdo SÓ APÓS o login bem-sucedido
+                    await loadMainContent();
+                } else {
+                    throw new Error(result.message || 'Ocorreu uma falha na autenticação.');
+                }
+
+            } catch (error) {
+                errorMessage.textContent = error.message;
+                errorMessage.classList.add('text-red-500');
+                console.error('Erro na autenticação:', error);
+            }
+        }
+        
+        document.getElementById('login-form').addEventListener('submit', handleLogin);
+
+        // Modificado: Agora verifica o login e DEPOIS carrega o conteúdo.
+        window.onload = async function() {
+            if (sessionStorage.getItem('isLoggedIn') === 'true') {
+                await loadMainContent();
+            }
+        };
+
+    </script>
+</body>
+</html>
